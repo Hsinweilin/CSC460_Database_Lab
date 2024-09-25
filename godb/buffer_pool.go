@@ -19,13 +19,20 @@ const (
 
 type BufferPool struct {
 	// TODO: some code goes here
+	numPages int
+	pages map[int]Page 
 	logFile *LogFile
 }
 
 // Create a new BufferPool with the specified number of pages
 func NewBufferPool(numPages int) (*BufferPool, error) {
 	// TODO: some code goes here
-	return &BufferPool{}, fmt.Errorf("NewBufferPool not implemented") // replace me
+	buffPool := &BufferPool{
+		numPages: numPages,
+		pages: make(map[int]Page),
+		logFile: nil,//TODO: update needed
+	}
+	return buffPool, fmt.Errorf("NewBufferPool not implemented")
 }
 
 // Testing method -- iterate through all pages in the buffer pool
@@ -33,6 +40,16 @@ func NewBufferPool(numPages int) (*BufferPool, error) {
 // Mark pages as not dirty after flushing them.
 func (bp *BufferPool) FlushAllPages() {
 	// TODO: some code goes here
+	for key, page := range bp.pages{
+		if page.isDirty(){
+			dbFile := page.getFile()
+			if err := dbFile.flushPage(page); err != nil{
+				fmt.Println("Error flushing page:", err, key)
+                continue // Proceed to the next page
+			}
+			page.setDirty(0, false)
+		}
+	}
 }
 
 // Abort the transaction, releasing locks. Because GoDB is FORCE/NO STEAL, none
@@ -69,7 +86,36 @@ func (bp *BufferPool) BeginTransaction(tid TransactionID) error {
 // of pages in the BufferPool in a map keyed by the [DBFile.pageKey].
 func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm RWPerm) (Page, error) {
 	// TODO: some code goes here
-	return nil, fmt.Errorf("GetPage not implemented") // replace me
+	// if page already cached
+	if cached := bp.pages[pageNo]; cached != nil{
+		return cached, nil
+	}
+	
+	// if not, read from Disk, also check the size of numPage in bufferPool
+	if len(bp.pages) >= bp.numPages{// if bufferPool is full, evict a page
+		if err := bp.evictPage(); err != nil{
+			//if evict page fail, return error
+			return nil, err
+		}
+	}
+
+	page, err := file.readPage(pageNo)
+	if err != nil{
+		fmt.Println("Error reading file from Disk:", err)
+		return nil, err
+	}
+	// cache the page in the bufferPool
+	bp.pages[pageNo] = page
+	return page, nil	
 }
 
 // Hint: GetPage function need function there: func (bp *BufferPool) evictPage() error
+func (bp *BufferPool) evictPage() error{
+	for key, val := range bp.pages{
+		if !val.isDirty(){// if not dirty evict this page
+			delete(bp.pages, key)
+			return nil
+		}
+	}
+	return fmt.Errorf("all pages in buffer pool is dirty")
+}
