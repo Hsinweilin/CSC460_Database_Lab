@@ -21,6 +21,7 @@ type BufferPool struct {
 	// TODO: some code goes here
 	numPages int
 	pages map[int]Page 
+	order []int // keep track of accessing order
 	logFile *LogFile
 }
 
@@ -30,6 +31,7 @@ func NewBufferPool(numPages int) (*BufferPool, error) {
 	buffPool := &BufferPool{
 		numPages: numPages,
 		pages: make(map[int]Page),
+		order: make([]int, numPages),
 		logFile: nil,//TODO: update needed
 	}
 	return buffPool, fmt.Errorf("NewBufferPool not implemented")
@@ -88,6 +90,7 @@ func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm R
 	// TODO: some code goes here
 	// if page already cached
 	if cached := bp.pages[pageNo]; cached != nil{
+		bp.updateAccessOrder(pageNo) // Update access order
 		return cached, nil
 	}
 	
@@ -106,16 +109,31 @@ func (bp *BufferPool) GetPage(file DBFile, pageNo int, tid TransactionID, perm R
 	}
 	// cache the page in the bufferPool
 	bp.pages[pageNo] = page
+	bp.order = append(bp.order, pageNo)// add newly accessed page into order slice
 	return page, nil	
 }
 
 // Hint: GetPage function need function there: func (bp *BufferPool) evictPage() error
 func (bp *BufferPool) evictPage() error{
-	for key, val := range bp.pages{
-		if !val.isDirty(){// if not dirty evict this page
-			delete(bp.pages, key)
+	for key, val := range bp.order{
+		if !bp.pages[val].isDirty(){// if not dirty, evict this page
+			delete(bp.pages, val)// evict that page from bufferpool map
+			bp.order = append(bp.order[:key], bp.order[key+1:]...)// update order slice as well
 			return nil
 		}
 	}
 	return fmt.Errorf("all pages in buffer pool is dirty")
+}
+
+// keep track of least accessed page
+func (bp *BufferPool) updateAccessOrder(pageNo int) {
+    // Remove the page from its current position in the order slice
+    for i, key := range bp.order {
+        if key == pageNo {
+            bp.order = append(bp.order[:i], bp.order[i+1:]...)
+            break
+        }
+    }
+    // Add the page key to the end of the order slice
+    bp.order = append(bp.order, pageNo)
 }
