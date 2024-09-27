@@ -97,7 +97,7 @@ func newHeapPage(desc *TupleDesc, pageNo int, f *HeapFile) (*heapPage, error) {
 
 // Hint: heapfile/insertTuple needs function there:  func (h *heapPage) getNumEmptySlots() int
 func (h *heapPage) getNumEmptySlots() int{
-	return int(h.numSlots)
+	return int(h.numSlots) - int(h.usedSlots)
 }
 func (h *heapPage) getNumSlots() int {
 	// TODO: some code goes here
@@ -119,8 +119,8 @@ func (h *heapPage) insertTuple(t *Tuple) (recordID, error) {
 
 	h.tuples = append(h.tuples, t)//add tuple to the end of tuple slices
 	h.usedSlots += 1//increment usedSlots
-	h.dirty = true// mark page as dirty after modification
-	return t.Rid, fmt.Errorf("insertTuple not implemented") //replace me
+	
+	return t.Rid, nil //replace me
 }
 
 // Delete the tuple at the specified record ID, or return an error if the ID is

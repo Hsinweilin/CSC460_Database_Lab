@@ -65,8 +65,14 @@ func (d1 *TupleDesc) equals(d2 *TupleDesc) bool {
 	return true
 }
 
-// Hint: heap_page need function there:  (desc *TupleDesc) bytesPerTuple() int
+// Hint: heap_page need function there:  
+func (desc *TupleDesc) bytesPerTuple() int{
+	//TODO
+	return 0
+}
+
 func bytesPerTuple() int {
+	//TODO
 	return 0
 }
 

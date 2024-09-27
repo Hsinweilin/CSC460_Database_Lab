@@ -20,7 +20,7 @@ const (
 type BufferPool struct {
 	// TODO: some code goes here
 	numPages int
-	pages map[int]Page 
+	pages map[any]Page 
 	order []int // keep track of accessing order
 	logFile *LogFile
 }
@@ -30,7 +30,7 @@ func NewBufferPool(numPages int) (*BufferPool, error) {
 	// TODO: some code goes here
 	buffPool := &BufferPool{
 		numPages: numPages,
-		pages: make(map[int]Page),
+		pages: make(map[any]Page),
 		order: make([]int, numPages),
 		logFile: nil,//TODO: update needed
 	}
