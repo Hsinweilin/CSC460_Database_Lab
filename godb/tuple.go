@@ -7,7 +7,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"go/types"
+	// "go/types"
 	"strconv"
 	"strings"
 )
@@ -164,6 +164,7 @@ type Tuple struct {
 }
 
 type recordID interface {
+    // This interface is empty, meaning any type can implement it.
 }
 
 // Serialize the contents of the tuple into a byte array Since all tuples are of
@@ -221,7 +222,7 @@ func (t *Tuple) writeTo(b *bytes.Buffer) error {
 			return fmt.Errorf("unknown type")
 		}
 	}
-	return fmt.Errorf("writeTo not implemented") //replace me
+	return nil
 }
 
 // Read the contents of a tuple with the specified [TupleDesc] from the
@@ -242,7 +243,7 @@ func readTupleFrom(b *bytes.Buffer, desc *TupleDesc) (*Tuple, error) {
 	tuple := &Tuple{
 		Desc:   *desc,
 		Fields: make([]DBValue, len(desc.Fields)),
-		Rid:    nil,
+		Rid:    RecordIDImpl{},
 	}
 	for i, field := range desc.Fields {
 		switch field.Ftype {
@@ -291,7 +292,7 @@ func joinTuples(t1 *Tuple, t2 *Tuple) *Tuple {
 			Fields: append(t1.Desc.Fields, t2.Desc.Fields...), //apend 2 slices together
 		},
 		Fields: append(t1.Fields, t2.Fields...),
-		Rid:    nil,
+		Rid:    RecordIDImpl{},
 	}
 	return t3 //replace me
 }
