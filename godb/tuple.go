@@ -133,7 +133,7 @@ func (desc *TupleDesc) merge(desc2 *TupleDesc) *TupleDesc {
 	// TODO: some code goes here
 	//create a new pointer point to the merged
 	merged := &TupleDesc{
-		Fields: make([]FieldType, len(desc.Fields)+len(desc2.Fields)),
+		Fields: make([]FieldType, 0, len(desc.Fields)+len(desc2.Fields)),
 	}
 	// Append fields from the first TupleDesc
 	merged.Fields = append(merged.Fields, desc.Fields...)
@@ -200,9 +200,9 @@ func (t *Tuple) writeTo(b *bytes.Buffer) error {
 		}
 	}
 
-	if b.Len()+requiredCapacity > b.Cap() {
-		return fmt.Errorf("buffer has insufficient capacity")
-	}
+	// if b.Len()+requiredCapacity > b.Cap() {
+	// 	return fmt.Errorf("buffer has insufficient capacity")
+	// }
 
 	for i, field := range t.Desc.Fields {
 		switch field.Ftype {
@@ -295,11 +295,40 @@ func joinTuples(t1 *Tuple, t2 *Tuple) *Tuple {
 	// TODO: some code goes here
 	t3 := &Tuple{
 		Desc: TupleDesc{
-			Fields: append(t1.Desc.Fields, t2.Desc.Fields...), //apend 2 slices together
+			Fields: make([]FieldType, 0, 
+                (func() int {
+                    if t1 != nil { return len(t1.Desc.Fields) }
+                    return 0
+                }()) + 
+                (func() int {
+                    if t2 != nil { return len(t2.Desc.Fields) }
+                    return 0
+                }()),
+            ), //apend 2 slices together
 		},
-		Fields: append(t1.Fields, t2.Fields...),
+		Fields: make([]DBValue, 0, 
+            (func() int {
+                if t1 != nil { return len(t1.Fields) }
+                return 0
+            }()) + 
+            (func() int {
+                if t2 != nil { return len(t2.Fields) }
+                return 0
+            }()),
+        ),
 		Rid:    RecordIDImpl{},
 	}
+	    // Append fields from the first Tuple if it exists
+		if t1 != nil {
+			t3.Desc.Fields = append(t3.Desc.Fields, t1.Desc.Fields...)
+			t3.Fields = append(t3.Fields, t1.Fields...)
+		}
+	
+		// Append fields from the second Tuple if it exists
+		if t2 != nil {
+			t3.Desc.Fields = append(t3.Desc.Fields, t2.Desc.Fields...)
+			t3.Fields = append(t3.Fields, t2.Fields...)
+		}
 	return t3 //replace me
 }
 
@@ -371,25 +400,44 @@ func (t *Tuple) compareField(t2 *Tuple, field Expr) (orderByState, error) {
 func (t *Tuple) project(fields []FieldType) (*Tuple, error) {
 	// TODO: some code goes here
 	// Create a map to store the selected fields for quick lookup
-	selectedFields := make(map[string]FieldType)
-	for _, field := range fields {
-		selectedFields[field.Fname] = field // Store the field names
-	}
-	// keep track of the projected fields
+	selectedFields := make(map[string]DBValue)
 	projectedFields := make([]DBValue, 0, len(fields))
+	// keep track of the projected fields
 	for i, field := range t.Desc.Fields {
-		_, exist := selectedFields[field.Fname]
-		if exist {
-			projectedFields = append(projectedFields, t.Fields[i])
+		keyWithQualifier := field.TableQualifier + "." + field.Fname
+		selectedFields[keyWithQualifier] = t.Fields[i] // Store the field names with qualifiers
+		// Also store the key without the qualifier
+		keyWithoutQualifier := field.Fname
+		selectedFields[keyWithoutQualifier] = t.Fields[i] // Store the field names without qualifiers
+	}
+
+	for _, field := range fields {
+		keyWithQualifier := field.TableQualifier + "." + field.Fname
+		// Check if the field exists in the map
+		if _, exist := selectedFields[keyWithQualifier]; exist {
+			projectedFields = append(projectedFields, selectedFields[keyWithQualifier])
+			// // Remove the matched field from selectedFields to avoid duplicates
+			// delete(selectedFields, keyWithQualifier)
+		} else {
+			keyWithoutQualifier := field.Fname
+			if _, exist := selectedFields[keyWithoutQualifier]; exist {
+				// Match without qualifier if no qualifier match was found
+				projectedFields = append(projectedFields, selectedFields[keyWithoutQualifier])
+				// // Remove the matched field from selectedFields to avoid duplicates
+				// delete(selectedFields, keyWithoutQualifier)
+			}
 		}
 	}
+	
+	// // Debug output to trace the projection process
+	// fmt.Printf("Projected Fields: %+v\n", projectedFields)
 	t3 := &Tuple{
 		Desc: TupleDesc{
 			Fields: fields},
 		Fields: projectedFields,
 		Rid:    t.Rid,
 	}
-	return t3, fmt.Errorf("project not implemented") //replace me
+	return t3, nil
 }
 
 // Compute a key for the tuple to be used in a map structure
