@@ -86,13 +86,13 @@ func newHeapPage(desc *TupleDesc, pageNo int, f *HeapFile) (*heapPage, error) {
 		pageNo:   pageNo,
 		numSlots:  int32(numSlots),
 		usedSlots: 0, // Initially, no slots are used
-		tuples:    make([]*Tuple, numSlots), // Allocate slice for tuples
+		tuples:    make([]*Tuple, 0, numSlots), // Allocate slice for tuples
 		dirty:     false,
 		nextSlot: 0,
 		tupledesc: desc,
 		file:      f, // Assign the provided HeapFile
 	}
-	return hp, fmt.Errorf("newHeapPage is not implemented") //replace me
+	return hp, nil
 }
 
 // Hint: heapfile/insertTuple needs function there:  func (h *heapPage) getNumEmptySlots() int
@@ -108,18 +108,17 @@ func (h *heapPage) getNumSlots() int {
 // no free slots.  Set the tuples rid and return it.
 func (h *heapPage) insertTuple(t *Tuple) (recordID, error) {
 	// TODO: some code goes here
+	 // Check if the page is full before inserting
+	 if h.usedSlots >= h.numSlots {
+        return RecordIDImpl{}, fmt.Errorf("heapPage is already full")
+    }
 	t.Rid = RecordIDImpl{
 		PageNum: h.pageNo,
 		SlotNum: h.nextSlot,
 	} //assign tuple RID
 	h.nextSlot += 1
-	if h.usedSlots >= h.numSlots{
-		return t.Rid, fmt.Errorf("heapPage is already full")
-	}
-
 	h.tuples = append(h.tuples, t)//add tuple to the end of tuple slices
 	h.usedSlots += 1//increment usedSlots
-	
 	return t.Rid, nil //replace me
 }
 
@@ -130,11 +129,12 @@ func (h *heapPage) deleteTuple(rid recordID) error {
 	for i, t := range h.tuples{
 		if t.Rid == rid{
 			h.tuples = append(h.tuples[:i], h.tuples[i+1:]...)// remove such tuple from the slice
+			//fmt.Println("deleted tuple", t)
+			h.usedSlots -= 1
+			return nil
 		}
-		h.usedSlots -= 1
-		break
 	}
-	return fmt.Errorf("deleteTuple not implemented") //replace me
+	return fmt.Errorf("page is empty, delete fail")
 }
 
 // Page method - return whether or not the page is dirty
@@ -162,6 +162,9 @@ func (h *heapPage) getFile() DBFile {
 // the binary.Write method in LittleEndian order, followed by the tuples of the
 // page, written using the Tuple.writeTo method.
 func (h *heapPage) toBuffer() (*bytes.Buffer, error) {
+	for _, tuple := range h.tuples{
+		fmt.Println(tuple)
+	}
 	// TODO: some code goes here
 	buffer := new(bytes.Buffer)
 	if err := binary.Write(buffer, binary.LittleEndian, h.numSlots); err != nil{
@@ -175,7 +178,8 @@ func (h *heapPage) toBuffer() (*bytes.Buffer, error) {
 			return buffer, err
 		}
 	}
-	return buffer, fmt.Errorf("heap_page.toBuffer not implemented") //replace me
+	fmt.Printf("Size of buffer: %d bytes\n", buffer.Len())
+	return buffer, nil
 }
 
 // Read the contents of the HeapPage from the supplied buffer.
@@ -186,15 +190,16 @@ func (h *heapPage) initFromBuffer(buf *bytes.Buffer) error {
 	if err := binary.Read(buf, binary.LittleEndian, &h.usedSlots); err != nil{
 		return fmt.Errorf("reading numSlots from buffer fail")
 	}
-	for i := 0; i < int(h.numSlots); i++{// reading tuple from buffer
+	// h.tuples = make([]*Tuple, 0, h.numSlots) // Ensure tuples are allocated
+	for i := 0; i < int(h.usedSlots); i++{// reading tuple from buffer
 		tuple, err := readTupleFrom(buf, h.tupledesc) // Use h.desc for the TupleDesc
     	if err != nil {
         	return fmt.Errorf("reading tuple %d from buffer failed: %w", i, err) // Include index and err
     	}
-    	h.tuples[i] = tuple // Assign the tuple to the slice
+    	h.tuples = append(h.tuples, tuple)
 	}
 	
-	return fmt.Errorf("initFromBuffer not implemented") //replace me
+	return nil
 }
 
 // Return a function that iterates through the tuples of the heap page.  Be sure
@@ -202,9 +207,13 @@ func (h *heapPage) initFromBuffer(buf *bytes.Buffer) error {
 // return it. Return nil, nil when the last tuple is reached.
 func (p *heapPage) tupleIter() func() (*Tuple, error) {
 	// TODO: some code goes here
+	//fmt.Println(p.getNumSlots(), p.usedSlots)
+	// for _, tuple := range p.tuples{
+	// 	fmt.Println(tuple)
+	// }
 	currentIndex := 0
-	return func() (*Tuple, error) { // replace me
-		if currentIndex >= p.getNumSlots(){//end of tuples
+	return func() (*Tuple, error) { 
+		if currentIndex >= int(p.usedSlots){//end of tuples
 			return nil, nil
 		}
 		tuple := p.tuples[currentIndex]
@@ -214,6 +223,6 @@ func (p *heapPage) tupleIter() func() (*Tuple, error) {
 		}
 		currentIndex ++
 
-		return tuple, fmt.Errorf("heap_file.Iterator not implemented")
+		return tuple, nil
 	}
 }
