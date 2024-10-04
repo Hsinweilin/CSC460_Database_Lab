@@ -27,25 +27,25 @@ file that you should call LoadFromCSV on.
 func computeFieldSum(bp *BufferPool, fileName string, td TupleDesc, sumField string) (int, error) {
 	// TODO: some code goes here
 	hf, err := NewHeapFile(".//query1", &td, bp)
-	if err != nil{
+	if err != nil {
 		return -1, err
 	}
 	csv, err := os.Open(fileName) // for read-only access
-    if err != nil {
-        return -1, fmt.Errorf("could not open file: %w", err)
-    }
+	if err != nil {
+		return -1, fmt.Errorf("could not open file: %w", err)
+	}
 	defer csv.Close()
 	err = hf.LoadFromCSV(csv, true, ",", false)
-	if err != nil{
+	if err != nil {
 		return -1, err
 	}
 
 	sum := 0
 	fieldIndex := -1
 
-	for i, field := range td.Fields{
-		fmt.Println(field.Fname)
-		if field.Fname == "age"{
+	for i, field := range td.Fields {
+		//fmt.Println(field.Fname)
+		if field.Fname == sumField {
 			fieldIndex = i
 			break
 		}
@@ -65,7 +65,7 @@ func computeFieldSum(bp *BufferPool, fileName string, td TupleDesc, sumField str
 		}
 
 		if intField, ok := tuple.Fields[fieldIndex].(IntField); ok {
-			sum += int(intField.Value) // Assuming IntField has a Value field of type int64
+			sum += int(intField.Value) 
 		} else {
 			return 0, fmt.Errorf("field is not a integer")
 		}

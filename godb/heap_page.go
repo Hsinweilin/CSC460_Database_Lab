@@ -218,10 +218,6 @@ func (h *heapPage) initFromBuffer(buf *bytes.Buffer) error {
 // return it. Return nil, nil when the last tuple is reached.
 func (p *heapPage) tupleIter() func() (*Tuple, error) {
 	// TODO: some code goes here
-	//fmt.Println(p.getNumSlots(), p.usedSlots)
-	// for _, tuple := range p.tuples{
-	// 	fmt.Println(tuple)
-	// }
 	currentIndex := 0
 	return func() (*Tuple, error) { 
 		if currentIndex >= int(p.usedSlots){//end of tuples

@@ -200,10 +200,6 @@ func (t *Tuple) writeTo(b *bytes.Buffer) error {
 		}
 	}
 
-	// if b.Len()+requiredCapacity > b.Cap() {
-	// 	return fmt.Errorf("buffer has insufficient capacity")
-	// }
-
 	for i, field := range t.Desc.Fields {
 		switch field.Ftype {
 		case IntType:

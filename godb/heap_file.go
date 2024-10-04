@@ -151,22 +151,9 @@ func (f *HeapFile) readPage(pageNo int) (Page, error) {
 
     offset := int64(pageNo * PageSize)
 
-    // if _, err := file.Seek(offset, 0); err != nil {
-    //     return nil, fmt.Errorf("failed to seek to page %d: %w", pageNo, err)
-    // }
-
 	//fmt.Println("reading at offset: ", offset)
     buffer := make([]byte, PageSize)
     file.ReadAt(buffer, offset)
-	// if err != nil{
-	// 	if err == io.EOF {
-	// 		// Handle EOF case if needed
-	// 		// You may choose to just continue or break depending on your logic
-	// 		//fmt.Println("Reached end of file, but read bytes: ", n)
-	// 	}else{
-	// 		return nil, err
-	// 	}
-	// }
 
     byteBuffer := bytes.NewBuffer(buffer)
     hp, err := newHeapPage(f.tupleDesc, pageNo, f)
@@ -194,30 +181,6 @@ func (f *HeapFile) readPage(pageNo int) (Page, error) {
 // The page the tuple is inserted into should be marked as dirty.
 func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 	// TODO: some code goes here
-	//fmt.Println(f)
-	if f.numPages == 0{// no heap page yet, so create one
-		hp, err := newHeapPage(&t.Desc, 0, f)
-		if err != nil{
-			return fmt.Errorf("create first heapPage fail")
-		}
-		rid, err := hp.insertTuple(t)
-		if err != nil{
-			return fmt.Errorf(err.Error(), rid)
-		}
-		f.pages = append(f.pages, hp)
-		f.numPages += 1
-		err = f.flushPage(hp)
-		if err != nil{
-			return err
-		}
-		p, err := f.bufPool.GetPage(f, 0, tid, ReadPerm)
-		if err != nil{
-			return fmt.Errorf(err.Error(), p)
-		}
-		//fmt.Println("first heapPage", f,rid, f.bufPool.pages, p)
-		return nil
-	}
-	
 	for i := 0; i < f.numPages; i++ {
 		page, err := f.bufPool.GetPage(f, i, tid, WritePerm)
 		//fmt.Println(page, i)
@@ -242,10 +205,6 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 			hp.setDirty(tid, true)
 			return nil
 		}
-		// }else{
-		// 	f.flushPage(hp)
-		// 	hp.setDirty(tid, false)
-		// }
 	}
 	//after iterating all heap pages, still no free space, create a new page
 	//fmt.Println("create new heapPage")
@@ -255,15 +214,6 @@ func (f *HeapFile) insertTuple(t *Tuple, tid TransactionID) error {
 		return fmt.Errorf("create new heapPage fail")
 	}
 	f.numPages ++
-	// rid, err := hp.insertTuple(t)
-	// if err != nil{
-	// 	return fmt.Errorf(err.Error(), rid)
-	// }
-	// p, err := f.bufPool.GetPage(f, newPageNum, tid, WritePerm)
-	// if err != nil{
-	// 	return fmt.Errorf(err.Error(), p)
-	// }
-	// hp = p.(*heapPage)
 	_, err = hp.insertTuple(t)
 	if err != nil{
 		return err
@@ -406,35 +356,6 @@ func (f *HeapFile) Iterator(tid TransactionID) (func() (*Tuple, error), error) {
 		curIter = hp.tupleIter()
 		return curIter()
 	}, nil
-        // Check if we've exhausted all pages
-		// fmt.Println("currPageNo, currTupleIndex", currentPageNo, currentTupleIndex)
-        // if currentPageNo > f.numPages {
-        //     return nil, nil // No more tuples to read
-        // }
-
-        // // Get the current page from the BufferPool
-        // page, err := f.bufPool.GetPage(f, currentPageNo, tid, ReadPerm)
-        // if err != nil {
-        //     return nil, err // Handle error
-        // }
-		// if page == nil{
-		// 	return nil, fmt.Errorf("page is nil")
-		// }
-        // // Cast the page to heapPage
-        // hp := page.(*heapPage)
-		// fmt.Println(hp)
-		
-		// if currentTupleIndex > len(hp.tuples) - 1{
-		// 	return nil, nil
-		// }
-		// t := hp.tuples[currentTupleIndex]
-		// t.Rid = RecordIDImpl{PageNum: currentPageNo, SlotNum: currentTupleIndex}
-		// currentTupleIndex++
-		// if currentTupleIndex == 101{
-		// 	currentTupleIndex = 0
-		// 	currentPageNo ++
-		// }
-        // return t, nil
 }
 
 
