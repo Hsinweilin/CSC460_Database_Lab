@@ -60,6 +60,8 @@ type heapPage struct {
 	file DBFile
 	nextSlot int
 	tupledesc  *TupleDesc
+	transactionID TransactionID
+	padding      []byte // Field to hold padding bytes
 	sync.Mutex
 }
 
@@ -90,8 +92,15 @@ func newHeapPage(desc *TupleDesc, pageNo int, f *HeapFile) (*heapPage, error) {
 		dirty:     false,
 		nextSlot: 0,
 		tupledesc: desc,
+		transactionID: -1,
 		file:      f, // Assign the provided HeapFile
 	}
+	// Add padding to the page
+    hp.padding = make([]byte, 8) // Create 8 bytes of padding
+    // Optionally, initialize the padding with zeros or specific values
+    for i := range hp.padding {
+        hp.padding[i] = 0 // Initialize padding to zero (or any other value)
+    }
 	return hp, nil
 }
 
@@ -119,6 +128,7 @@ func (h *heapPage) insertTuple(t *Tuple) (recordID, error) {
 	h.nextSlot += 1
 	h.tuples = append(h.tuples, t)//add tuple to the end of tuple slices
 	h.usedSlots += 1//increment usedSlots
+	//fmt.Println("insert tuple sucess")
 	return t.Rid, nil //replace me
 }
 
@@ -146,6 +156,7 @@ func (h *heapPage) isDirty() bool {
 // Page method - mark the page as dirty
 func (h *heapPage) setDirty(tid TransactionID, dirty bool) {
 	// TODO: some code goes here
+	h.transactionID = tid
 	h.dirty = dirty
 }
 
@@ -162,9 +173,9 @@ func (h *heapPage) getFile() DBFile {
 // the binary.Write method in LittleEndian order, followed by the tuples of the
 // page, written using the Tuple.writeTo method.
 func (h *heapPage) toBuffer() (*bytes.Buffer, error) {
-	for _, tuple := range h.tuples{
-		fmt.Println(tuple)
-	}
+	// for _, tuple := range h.tuples{
+	// 	fmt.Println(tuple)
+	// }
 	// TODO: some code goes here
 	buffer := new(bytes.Buffer)
 	if err := binary.Write(buffer, binary.LittleEndian, h.numSlots); err != nil{
@@ -178,7 +189,7 @@ func (h *heapPage) toBuffer() (*bytes.Buffer, error) {
 			return buffer, err
 		}
 	}
-	fmt.Printf("Size of buffer: %d bytes\n", buffer.Len())
+	// fmt.Printf("Size of buffer: %d bytes\n", buffer.Len())
 	return buffer, nil
 }
 
